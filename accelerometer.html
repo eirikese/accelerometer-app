@@ -1,131 +1,124 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Accelerometer Data Plot</title>
+    <title>Accelerometer Data with Rolling Plot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
-            background-color: #1e1e1e;
-            color: #c9d1d9;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            text-align: center;
+            font-family: Arial, sans-serif; 
             margin: 0;
-            padding: 20px;
+            padding: 0;
         }
-        h1 {
-            margin-bottom: 20px;
-        }
-        #chart-container {
-            position: relative;
-            height: 60vh;
-            width: 90vw;
-            margin: auto;
+        #container {
+            width: 100%;
+            height: 100vh;
+            box-sizing: border-box;
+            padding-top: 20px;
         }
         #button {
             padding: 10px 20px; 
             font-size: 1em;
-            margin-top: 20px;
-            background-color: #238636;
-            color: #ffffff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+            margin: 10px auto;
+            display: block;
         }
-        #button:hover {
-            background-color: #2ea043;
+        #chart-container {
+            width: 100%;
+            height: calc(100vh - 60px);
+        }
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
         }
     </style>
 </head>
 <body>
-    <h1>Accelerometer Data Plot</h1>
-    <div id="chart-container">
-        <canvas id="accelerometerChart"></canvas>
+    <div id="container">
+        <button id="button">Enable Accelerometer</button>
+        <div id="chart-container">
+            <canvas id="accelerometerChart"></canvas>
+        </div>
     </div>
-    <button id="button">Enable Accelerometer</button>
 
-    <!-- Include Chart.js library -->
+    <!-- Include Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Include Chart.js Streaming Plugin -->
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming"></script>
 
     <script>
         const button = document.getElementById("button");
         const ctx = document.getElementById('accelerometerChart').getContext('2d');
 
-        let accelerometerChart;
+        // Initialize data arrays
+        let timeData = [];
+        let xData = [];
+        let yData = [];
+        let zData = [];
 
-        // Create the chart
-        function createChart() {
-            accelerometerChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    datasets: [
-                        {
-                            label: 'X-axis',
-                            borderColor: '#ff7f50',
-                            backgroundColor: 'rgba(255, 127, 80, 0.1)',
-                            data: [],
-                            fill: false,
-                            lineTension: 0.1,
+        // Chart configuration
+        const config = {
+            type: 'line',
+            data: {
+                labels: timeData,
+                datasets: [
+                    {
+                        label: 'X-axis',
+                        data: xData,
+                        borderColor: 'red',
+                        fill: false,
+                    },
+                    {
+                        label: 'Y-axis',
+                        data: yData,
+                        borderColor: 'green',
+                        fill: false,
+                    },
+                    {
+                        label: 'Z-axis',
+                        data: zData,
+                        borderColor: 'blue',
+                        fill: false,
+                    },
+                ]
+            },
+            options: {
+                animation: false,
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'realtime',
+                        realtime: {
+                            duration: 10000,
+                            refresh: 100,
+                            delay: 0,
+                            onRefresh: chart => {
+                                chart.data.labels.push(Date.now());
+                                chart.data.datasets[0].data.push(latestX);
+                                chart.data.datasets[1].data.push(latestY);
+                                chart.data.datasets[2].data.push(latestZ);
+                            }
                         },
-                        {
-                            label: 'Y-axis',
-                            borderColor: '#1e90ff',
-                            backgroundColor: 'rgba(30, 144, 255, 0.1)',
-                            data: [],
-                            fill: false,
-                            lineTension: 0.1,
-                        },
-                        {
-                            label: 'Z-axis',
-                            borderColor: '#32cd32',
-                            backgroundColor: 'rgba(50, 205, 50, 0.1)',
-                            data: [],
-                            fill: false,
-                            lineTension: 0.1,
-                        },
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    scales: {
-                        x: {
-                            type: 'realtime',
-                            realtime: {
-                                duration: 10000,
-                                refresh: 100,
-                                delay: 0,
-                                onRefresh: function(chart) {
-                                    // Data is added in handleMotion
-                                }
-                            },
-                            grid: {
-                                color: '#2d2d2d',
-                            },
-                            ticks: {
-                                color: '#c9d1d9',
-                            },
-                        },
-                        y: {
-                            grid: {
-                                color: '#2d2d2d',
-                            },
-                            ticks: {
-                                color: '#c9d1d9',
-                            },
+                        title: {
+                            display: true,
+                            text: 'Time (last 10 seconds)'
                         }
                     },
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#c9d1d9',
-                            }
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Acceleration (m/s²)'
                         }
                     }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
                 }
-            });
-        }
+            }
+        };
+
+        const accelerometerChart = new Chart(ctx, config);
+
+        let latestX = 0, latestY = 0, latestZ = 0;
 
         button.addEventListener("click", () => {
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
@@ -145,26 +138,12 @@
                 window.addEventListener('devicemotion', handleMotion);
                 button.style.display = 'none';
             }
-            createChart();
         });
 
         function handleMotion(event) {
-            const x = event.acceleration.x || 0;
-            const y = event.acceleration.y || 0;
-            const z = event.acceleration.z || 0;
-
-            const now = Date.now();
-
-            accelerometerChart.data.datasets[0].data.push({ x: now, y: x });
-            accelerometerChart.data.datasets[1].data.push({ x: now, y: y });
-            accelerometerChart.data.datasets[2].data.push({ x: now, y: z });
-
-            // Keep the data arrays trimmed to the last 10 seconds
-            accelerometerChart.data.datasets.forEach(dataset => {
-                dataset.data = dataset.data.filter(dataPoint => dataPoint.x >= now - 10000);
-            });
-
-            accelerometerChart.update('quiet');
+            latestX = event.acceleration.x || 0;
+            latestY = event.acceleration.y || 0;
+            latestZ = event.acceleration.z || 0;
         }
     </script>
 </body>
