@@ -1,124 +1,67 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Accelerometer Data with Rolling Plot</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accelerometer and Orientation Data</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <style>
         body {
             font-family: Arial, sans-serif; 
+            text-align: center; 
             margin: 0;
             padding: 0;
+            overflow: hidden;
         }
         #container {
             width: 100%;
             height: 100vh;
             box-sizing: border-box;
-            padding-top: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #data {
+            font-size: 1.2em;
+            width: 90%;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        #data p {
+            margin: 10px 0;
         }
         #button {
-            padding: 10px 20px; 
+            padding: 15px 30px; 
             font-size: 1em;
-            margin: 10px auto;
-            display: block;
-        }
-        #chart-container {
-            width: 100%;
-            height: calc(100vh - 60px);
+            margin-top: 20px;
+            cursor: pointer;
         }
         canvas {
-            width: 100% !important;
-            height: 100% !important;
+            margin-top: 20px;
+            background-color: #f0f0f0;
         }
     </style>
 </head>
 <body>
     <div id="container">
-        <button id="button">Enable Accelerometer</button>
-        <div id="chart-container">
-            <canvas id="accelerometerChart"></canvas>
+        <h1>Accelerometer and Orientation Data</h1>
+        <div id="data">
+            <p><strong>Accelerometer Data:</strong></p>
+            <p>X-axis: <span id="x">0</span></p>
+            <p>Y-axis: <span id="y">0</span></p>
+            <p>Z-axis: <span id="z">0</span></p>
+            <p><strong>Orientation Data:</strong></p>
+            <p>Alpha (Z): <span id="alpha">0</span>°</p>
+            <p>Beta (X): <span id="beta">0</span>°</p>
+            <p>Gamma (Y): <span id="gamma">0</span>°</p>
         </div>
+        <button id="button">Enable Sensors</button>
+        <canvas id="orientationCanvas" width="300" height="300"></canvas>
     </div>
-
-    <!-- Include Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
         const button = document.getElementById("button");
-        const ctx = document.getElementById('accelerometerChart').getContext('2d');
-
-        // Initialize data arrays
-        let timeData = [];
-        let xData = [];
-        let yData = [];
-        let zData = [];
-
-        // Chart configuration
-        const config = {
-            type: 'line',
-            data: {
-                labels: timeData,
-                datasets: [
-                    {
-                        label: 'X-axis',
-                        data: xData,
-                        borderColor: 'red',
-                        fill: false,
-                    },
-                    {
-                        label: 'Y-axis',
-                        data: yData,
-                        borderColor: 'green',
-                        fill: false,
-                    },
-                    {
-                        label: 'Z-axis',
-                        data: zData,
-                        borderColor: 'blue',
-                        fill: false,
-                    },
-                ]
-            },
-            options: {
-                animation: false,
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'realtime',
-                        realtime: {
-                            duration: 10000,
-                            refresh: 100,
-                            delay: 0,
-                            onRefresh: chart => {
-                                chart.data.labels.push(Date.now());
-                                chart.data.datasets[0].data.push(latestX);
-                                chart.data.datasets[1].data.push(latestY);
-                                chart.data.datasets[2].data.push(latestZ);
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Time (last 10 seconds)'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Acceleration (m/s²)'
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    }
-                }
-            }
-        };
-
-        const accelerometerChart = new Chart(ctx, config);
-
-        let latestX = 0, latestY = 0, latestZ = 0;
+        const canvas = document.getElementById("orientationCanvas");
+        const ctx = canvas.getContext("2d");
 
         button.addEventListener("click", () => {
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
@@ -126,7 +69,7 @@
                 DeviceMotionEvent.requestPermission()
                     .then(permissionState => {
                         if (permissionState === 'granted') {
-                            window.addEventListener('devicemotion', handleMotion);
+                            startSensors();
                             button.style.display = 'none';
                         } else {
                             alert("Permission denied. Please allow access to motion sensors.");
@@ -135,15 +78,60 @@
                     .catch(console.error);
             } else {
                 // Non-iOS devices
-                window.addEventListener('devicemotion', handleMotion);
+                startSensors();
                 button.style.display = 'none';
             }
         });
 
+        function startSensors() {
+            window.addEventListener('devicemotion', handleMotion);
+            window.addEventListener('deviceorientation', handleOrientation);
+        }
+
         function handleMotion(event) {
-            latestX = event.acceleration.x || 0;
-            latestY = event.acceleration.y || 0;
-            latestZ = event.acceleration.z || 0;
+            const x = event.acceleration.x || 0;
+            const y = event.acceleration.y || 0;
+            const z = event.acceleration.z || 0;
+
+            document.getElementById("x").textContent = x.toFixed(2);
+            document.getElementById("y").textContent = y.toFixed(2);
+            document.getElementById("z").textContent = z.toFixed(2);
+        }
+
+        function handleOrientation(event) {
+            const alpha = event.alpha || 0; // Z-axis rotation
+            const beta = event.beta || 0;   // X-axis rotation
+            const gamma = event.gamma || 0; // Y-axis rotation
+
+            document.getElementById("alpha").textContent = alpha.toFixed(2);
+            document.getElementById("beta").textContent = beta.toFixed(2);
+            document.getElementById("gamma").textContent = gamma.toFixed(2);
+
+            drawOrientation(beta, gamma);
+        }
+
+        function drawOrientation(beta, gamma) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = 100;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw circle
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
+
+            // Calculate point based on beta and gamma
+            const x = centerX + (gamma / 90) * radius;
+            const y = centerY - (beta / 90) * radius;
+
+            // Draw phone orientation point
+            ctx.beginPath();
+            ctx.arc(x, y, 10, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ff0000';
+            ctx.fill();
         }
     </script>
 </body>
